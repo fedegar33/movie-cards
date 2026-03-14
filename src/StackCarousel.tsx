@@ -1,9 +1,10 @@
+import { useDialKit } from "dialkit";
 import {
 	AnimatePresence,
+	animate,
 	motion,
 	type PanInfo,
 	useMotionValue,
-	useMotionValueEvent,
 	useReducedMotion,
 	useSpring,
 	useTransform,
@@ -33,6 +34,28 @@ export function StackCarousel({ movies }: StackCarouselProps) {
 	const [activeIndex, setActiveIndex] = useState(0);
 	const reduceMotion = useReducedMotion();
 
+	const d = useDialKit("Resistance", {
+		maxStretch: [0.06, 0, 0.2],
+		stretchRange: [200, 50, 400],
+		dragRotateMax: [8, 0, 20],
+		dragRotateRange: [200, 50, 400],
+		dragElastic: [0.7, 0, 1],
+		releaseBounce: {
+			visualDuration: [0.35, 0.1, 0.8],
+			bounce: [0.6, 0, 1],
+		},
+		smoothing: {
+			_collapsed: true,
+			visualDuration: [0.05, 0.01, 0.3],
+			bounce: [0, 0, 1],
+		},
+		swipe: {
+			_collapsed: true,
+			velocityThreshold: [300, 50, 800],
+			distanceThreshold: [60, 10, 200],
+		},
+	});
+
 	const cardSpring = {
 		type: "spring",
 		visualDuration: spring.visualDuration,
@@ -48,26 +71,39 @@ export function StackCarousel({ movies }: StackCarouselProps) {
 			} as const);
 
 	// ── Swipe gesture ────────────────────────────────────────────────────────
-	// Track drag offset separately — only used to derive rotation tilt.
-	// We do NOT pass this as style.x because that would override animate.x
-	// and prevent Framer Motion from positioning cards correctly.
 	const dragOffset = useMotionValue(0);
 	const zeroOffset = useMotionValue(0);
 	const smoothOffset = useSpring(dragOffset, {
-		visualDuration: 0.05,
-		bounce: 0,
+		visualDuration: d.smoothing.visualDuration,
+		bounce: d.smoothing.bounce,
 	});
 
-	const dragRotate = useTransform(smoothOffset, [-200, 0, 200], [-8, 0, 8]);
+	const dragRotate = useTransform(smoothOffset, (offset) => {
+		const atStart = activeIndex === 0 && offset > 0;
+		const atEnd = activeIndex === movies.length - 1 && offset < 0;
+		if (atStart || atEnd) return 0;
+		const clamped = Math.max(
+			-d.dragRotateRange,
+			Math.min(d.dragRotateRange, offset),
+		);
+		return (clamped / d.dragRotateRange) * d.dragRotateMax;
+	});
+
+	// Boundary resistance: stretch scaleX when dragging in a blocked direction,
+	// then bounce back on release proportional to drag distance.
+	const stretchX = useMotionValue(1);
+
 	// Always pass a MotionValue (never switch between MotionValue and number).
 	const zeroRotate = useTransform(zeroOffset, (v) => v);
-	// Track which card was last dragged so it keeps dragRotate while the spring settles,
-	// even after activeIndex changes and it's no longer the active card.
 	const [lastDraggedIndex, setLastDraggedIndex] = useState(activeIndex);
 	const [isDragging, setIsDragging] = useState(false);
 
-	const VELOCITY_THRESHOLD = 300; // px/s
-	const DISTANCE_THRESHOLD = 60; // px
+	function isAtBoundary(offsetX: number) {
+		return (
+			(activeIndex === 0 && offsetX > 0) ||
+			(activeIndex === movies.length - 1 && offsetX < 0)
+		);
+	}
 
 	function handleDragStart() {
 		setLastDraggedIndex(activeIndex);
@@ -79,6 +115,13 @@ export function StackCarousel({ movies }: StackCarouselProps) {
 		info: PanInfo,
 	) {
 		dragOffset.set(info.offset.x);
+
+		if (isAtBoundary(info.offset.x)) {
+			const t = Math.min(Math.abs(info.offset.x) / d.stretchRange, 1);
+			stretchX.set(1 + t * d.maxStretch);
+		} else {
+			stretchX.set(1);
+		}
 	}
 
 	function handleDragEnd(
@@ -86,19 +129,29 @@ export function StackCarousel({ movies }: StackCarouselProps) {
 		info: PanInfo,
 	) {
 		const swipedLeft =
-			info.velocity.x < -VELOCITY_THRESHOLD ||
-			info.offset.x < -DISTANCE_THRESHOLD;
+			info.velocity.x < -d.swipe.velocityThreshold ||
+			info.offset.x < -d.swipe.distanceThreshold;
 		const swipedRight =
-			info.velocity.x > VELOCITY_THRESHOLD ||
-			info.offset.x > DISTANCE_THRESHOLD;
+			info.velocity.x > d.swipe.velocityThreshold ||
+			info.offset.x > d.swipe.distanceThreshold;
 
 		dragOffset.set(0);
 		setIsDragging(false);
 
-		if (swipedLeft && activeIndex < movies.length - 1) {
-			setActiveIndex((i) => i + 1);
-		} else if (swipedRight && activeIndex > 0) {
-			setActiveIndex((i) => i - 1);
+		if (isAtBoundary(info.offset.x)) {
+			const t = Math.min(Math.abs(info.offset.x) / d.stretchRange, 1);
+			animate(stretchX, 1, {
+				type: "spring",
+				visualDuration: d.releaseBounce.visualDuration,
+				bounce: d.releaseBounce.bounce * t,
+			});
+		} else {
+			stretchX.set(1);
+			if (swipedLeft && activeIndex < movies.length - 1) {
+				setActiveIndex((i) => i + 1);
+			} else if (swipedRight && activeIndex > 0) {
+				setActiveIndex((i) => i - 1);
+			}
 		}
 	}
 
@@ -159,10 +212,14 @@ export function StackCarousel({ movies }: StackCarouselProps) {
 								transformStyle: "preserve-3d",
 								rotate:
 									cardIndex === lastDraggedIndex ? dragRotate : zeroRotate,
+								scaleX: isActive ? stretchX : 1,
 							}}
 							drag="x"
 							dragConstraints={{ left: 0, right: 0 }}
-							dragElastic={0.7}
+							dragElastic={{
+								left: activeIndex < movies.length - 1 ? d.dragElastic : 0,
+								right: activeIndex > 0 ? d.dragElastic : 0,
+							}}
 							onDragStart={isActive ? handleDragStart : undefined}
 							onDrag={isActive ? handleDrag : undefined}
 							onDragEnd={isActive ? handleDragEnd : undefined}
