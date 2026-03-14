@@ -18,7 +18,7 @@ function Root() {
 	const nextMatch = matches[nextMatchIndex];
 
 	return (
-		<div className="min-h-screen w-full h-screen bg-neutral-800 flex items-center justify-center">
+		<div className="min-h-screen w-full h-screen bg-[#050505] flex items-center justify-center">
 			<div className="relative max-w-sm w-full h-full bg-[#050505] overflow-hidden">
 				<AnimatePresence mode="wait">
 					<Outlet key={nextMatch?.id} />

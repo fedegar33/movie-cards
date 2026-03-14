@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from "motion/react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Movie } from "./services/tmdbService";
 
 export type { Movie };
@@ -7,10 +7,8 @@ export type { Movie };
 const FACE =
 	"absolute inset-0 rounded-[14px] overflow-hidden bg-[#0F0F0F] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2),inset_0_0_0_1px_rgba(255,255,255,0.08)]";
 
-const OVERLAY_BG = [
-	"radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.45) 100%)",
-	"url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E\")",
-].join(", ");
+const OVERLAY_BG =
+	"radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.45) 100%)";
 
 function CardOverlay() {
 	return (
@@ -40,11 +38,14 @@ export function MovieCard({
 	isActive?: boolean;
 }) {
 	const [flipped, setFlipped] = useState(false);
+	const hasFlipped = useRef(false);
+	if (flipped) hasFlipped.current = true;
 	const reduceMotion = useReducedMotion();
 
 	// Reset flip when card becomes non-active
 	if (!isActive && flipped) {
 		setFlipped(false);
+		hasFlipped.current = false;
 	}
 
 	const flip = { perspective: 800, duration: 0.5, bounce: 0.25, scale: 1.55 };
@@ -94,7 +95,7 @@ export function MovieCard({
 					src={movie.backdrop}
 					alt="Scene still"
 					loading="lazy"
-					className="w-full h-full object-cover opacity-75 filter-[sepia(0.15)_contrast(1.05)]"
+					className="w-full h-full object-cover opacity-75"
 					style={{
 						maskImage:
 							"linear-gradient(to bottom, black 50%, transparent 100%)",
@@ -170,7 +171,7 @@ export function MovieCard({
 		>
 			<div className="w-full h-full" style={{ transformStyle: "preserve-3d" }}>
 				{front}
-				{back}
+				{hasFlipped.current && back}
 			</div>
 		</motion.div>
 	);
