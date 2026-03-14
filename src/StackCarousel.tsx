@@ -1,5 +1,7 @@
+import { useDialKit } from "dialkit";
 import {
 	AnimatePresence,
+	animate,
 	motion,
 	type PanInfo,
 	useMotionValue,
@@ -8,34 +10,51 @@ import {
 	useTransform,
 } from "motion/react";
 import { useRef, useState } from "react";
+import { type Movie, MovieCard } from "./MovieCard";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export interface CarouselItem {
-	id: string;
-	imageUrl: string;
-	title: string;
-}
-
 interface StackCarouselProps {
-	items: CarouselItem[];
+	movies: Movie[];
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const adjacent = { scale: 0.8, translateX: 70, opacity: 1, zIndex: 2 };
-const far = { scale: 0.6, translateX: 140, opacity: 1, zIndex: 1 };
-const enter = { scale: 0.5, translateX: 50, opacity: 0 };
-const exit = { translateX: 50, opacity: 0 };
+const adjacent = { scale: 0.8, translateX: 25, opacity: 1, zIndex: 2 };
+const far = { scale: 0.6, translateX: 50, opacity: 1, zIndex: 1 };
+const enter = { scale: 0.5, translateX: 20, opacity: 0 };
+const exit = { translateX: 20, opacity: 0 };
 
 const spring = { visualDuration: 0.4, bounce: 0.25 };
 const enterExitSpringConfig = { visualDuration: 0.3, bounce: 0.1 };
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function StackCarousel({ items }: StackCarouselProps) {
+export function StackCarousel({ movies }: StackCarouselProps) {
 	const [activeIndex, setActiveIndex] = useState(0);
 	const reduceMotion = useReducedMotion();
+
+	const d = useDialKit("Resistance", {
+		maxStretch: [0.06, 0, 0.2],
+		stretchRange: [200, 50, 400],
+		dragRotateMax: [8, 0, 20],
+		dragRotateRange: [200, 50, 400],
+		dragElastic: [0.7, 0, 1],
+		releaseBounce: {
+			visualDuration: [0.35, 0.1, 0.8],
+			bounce: [0.6, 0, 1],
+		},
+		smoothing: {
+			_collapsed: true,
+			visualDuration: [0.05, 0.01, 0.3],
+			bounce: [0, 0, 1],
+		},
+		swipe: {
+			_collapsed: true,
+			velocityThreshold: [300, 50, 800],
+			distanceThreshold: [60, 10, 200],
+		},
+	});
 
 	const cardSpring = {
 		type: "spring",
@@ -52,27 +71,43 @@ export function StackCarousel({ items }: StackCarouselProps) {
 			} as const);
 
 	// ── Swipe gesture ────────────────────────────────────────────────────────
-	// Track drag offset separately — only used to derive rotation tilt.
-	// We do NOT pass this as style.x because that would override animate.x
-	// and prevent Framer Motion from positioning cards correctly.
 	const dragOffset = useMotionValue(0);
 	const zeroOffset = useMotionValue(0);
 	const smoothOffset = useSpring(dragOffset, {
-		visualDuration: 0.05,
-		bounce: 0,
+		visualDuration: d.smoothing.visualDuration,
+		bounce: d.smoothing.bounce,
 	});
-	const dragRotate = useTransform(smoothOffset, [-200, 0, 200], [-8, 0, 8]);
+
+	const dragRotate = useTransform(smoothOffset, (offset) => {
+		const atStart = activeIndex === 0 && offset > 0;
+		const atEnd = activeIndex === movies.length - 1 && offset < 0;
+		if (atStart || atEnd) return 0;
+		const clamped = Math.max(
+			-d.dragRotateRange,
+			Math.min(d.dragRotateRange, offset),
+		);
+		return (clamped / d.dragRotateRange) * d.dragRotateMax;
+	});
+
+	// Boundary resistance: stretch scaleX when dragging in a blocked direction,
+	// then bounce back on release proportional to drag distance.
+	const stretchX = useMotionValue(1);
+
 	// Always pass a MotionValue (never switch between MotionValue and number).
 	const zeroRotate = useTransform(zeroOffset, (v) => v);
-	// Track which card was last dragged so it keeps dragRotate while the spring settles,
-	// even after activeIndex changes and it's no longer the active card.
 	const [lastDraggedIndex, setLastDraggedIndex] = useState(activeIndex);
+	const [isDragging, setIsDragging] = useState(false);
 
-	const VELOCITY_THRESHOLD = 300; // px/s
-	const DISTANCE_THRESHOLD = 60; // px
+	function isAtBoundary(offsetX: number) {
+		return (
+			(activeIndex === 0 && offsetX > 0) ||
+			(activeIndex === movies.length - 1 && offsetX < 0)
+		);
+	}
 
 	function handleDragStart() {
 		setLastDraggedIndex(activeIndex);
+		setIsDragging(true);
 	}
 
 	function handleDrag(
@@ -80,6 +115,13 @@ export function StackCarousel({ items }: StackCarouselProps) {
 		info: PanInfo,
 	) {
 		dragOffset.set(info.offset.x);
+
+		if (isAtBoundary(info.offset.x)) {
+			const t = Math.min(Math.abs(info.offset.x) / d.stretchRange, 1);
+			stretchX.set(1 + t * d.maxStretch);
+		} else {
+			stretchX.set(1);
+		}
 	}
 
 	function handleDragEnd(
@@ -87,18 +129,29 @@ export function StackCarousel({ items }: StackCarouselProps) {
 		info: PanInfo,
 	) {
 		const swipedLeft =
-			info.velocity.x < -VELOCITY_THRESHOLD ||
-			info.offset.x < -DISTANCE_THRESHOLD;
+			info.velocity.x < -d.swipe.velocityThreshold ||
+			info.offset.x < -d.swipe.distanceThreshold;
 		const swipedRight =
-			info.velocity.x > VELOCITY_THRESHOLD ||
-			info.offset.x > DISTANCE_THRESHOLD;
+			info.velocity.x > d.swipe.velocityThreshold ||
+			info.offset.x > d.swipe.distanceThreshold;
 
 		dragOffset.set(0);
+		setIsDragging(false);
 
-		if (swipedLeft && activeIndex < items.length - 1) {
-			setActiveIndex((i) => i + 1);
-		} else if (swipedRight && activeIndex > 0) {
-			setActiveIndex((i) => i - 1);
+		if (isAtBoundary(info.offset.x)) {
+			const t = Math.min(Math.abs(info.offset.x) / d.stretchRange, 1);
+			animate(stretchX, 1, {
+				type: "spring",
+				visualDuration: d.releaseBounce.visualDuration,
+				bounce: d.releaseBounce.bounce * t,
+			});
+		} else {
+			stretchX.set(1);
+			if (swipedLeft && activeIndex < movies.length - 1) {
+				setActiveIndex((i) => i + 1);
+			} else if (swipedRight && activeIndex > 0) {
+				setActiveIndex((i) => i - 1);
+			}
 		}
 	}
 
@@ -112,12 +165,12 @@ export function StackCarousel({ items }: StackCarouselProps) {
 	const cardVariants = {
 		initial: ({ direction, restX }: { direction: number; restX: number }) => ({
 			scale: enter.scale,
-			x: restX + direction * enter.translateX,
+			x: `${restX + direction * enter.translateX}%`,
 			opacity: enter.opacity,
 			transition: enterExitSpring,
 		}),
 		exit: ({ direction, restX }: { direction: number; restX: number }) => ({
-			x: restX + direction * exit.translateX,
+			x: `${restX + direction * exit.translateX}%`,
 			opacity: exit.opacity,
 			zIndex: 0,
 			transition: enterExitSpring,
@@ -131,71 +184,55 @@ export function StackCarousel({ items }: StackCarouselProps) {
 
 	const content = (
 		<div className="relative flex items-center justify-center w-full h-screen bg-neutral-950">
-			{/* Accessible fallback nav buttons — primary navigation is swipe */}
-			<button
-				type="button"
-				aria-label="Previous card"
-				onClick={() => setActiveIndex((i) => Math.max(0, i - 1))}
-				className="absolute bottom-8 left-8 z-50 px-4 py-2 rounded-full bg-white/20 text-white text-sm"
-			>
-				prev
-			</button>
-			<button
-				type="button"
-				aria-label="Next card"
-				onClick={() => setActiveIndex((i) => Math.min(items.length - 1, i + 1))}
-				className="absolute bottom-8 right-8 z-50 px-4 py-2 rounded-full bg-white/20 text-white text-sm"
-			>
-				next
-			</button>
 			<AnimatePresence>
-				{items.map((item, cardIndex) => {
+				{movies.map((movie, cardIndex) => {
 					const position = cardIndex - activeIndex;
 					const distance = Math.abs(position);
 
 					if (distance > MAX_DISTANCE) return null;
 
-					visibleIds.add(item.id);
+					visibleIds.add(movie.poster);
 
 					const level = distanceLevels[distance];
 					const translateX =
 						position >= 0 ? level.translateX : -level.translateX;
+					const translateXPct = `${translateX}%`;
 					const exitDirection = position >= 0 ? 1 : -1;
-					const isNew = !prevVisibleIds.current.has(item.id);
+					const isNew = !prevVisibleIds.current.has(movie.poster);
 					const isActive = distance === 0;
 
 					return (
 						<motion.div
-							key={item.id}
+							key={movie.poster}
 							custom={{ direction: exitDirection, restX: translateX }}
 							variants={cardVariants}
-							className="aspect-2/3 absolute w-64 rounded-2xl overflow-hidden shadow-2xl"
+							className={`aspect-2/3 absolute w-3/5 ${isActive ? (isDragging ? "cursor-grabbing" : "cursor-grab") : "pointer-events-none"}`}
 							style={{
 								zIndex: level.zIndex,
+								transformStyle: "preserve-3d",
 								rotate:
 									cardIndex === lastDraggedIndex ? dragRotate : zeroRotate,
+								scaleX: isActive ? stretchX : 1,
 							}}
-							drag={isActive ? "x" : false}
+							drag="x"
 							dragConstraints={{ left: 0, right: 0 }}
-							dragElastic={0.7}
+							dragElastic={{
+								left: activeIndex < movies.length - 1 ? d.dragElastic : 0,
+								right: activeIndex > 0 ? d.dragElastic : 0,
+							}}
 							onDragStart={isActive ? handleDragStart : undefined}
 							onDrag={isActive ? handleDrag : undefined}
 							onDragEnd={isActive ? handleDragEnd : undefined}
 							initial={isNew ? "initial" : false}
 							animate={{
 								scale: level.scale,
-								x: translateX,
+								x: translateXPct,
 								opacity: level.opacity,
 							}}
 							exit="exit"
 							transition={reduceMotion ? { duration: 0 } : cardSpring}
 						>
-							<img
-								src={item.imageUrl}
-								alt={item.title}
-								className="w-full h-full object-cover"
-								draggable={false}
-							/>
+							<MovieCard movie={movie} isActive={isActive} />
 						</motion.div>
 					);
 				})}
