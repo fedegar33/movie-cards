@@ -1,4 +1,3 @@
-import { useDialKit } from "dialkit";
 import {
 	AnimatePresence,
 	animate,
@@ -34,27 +33,16 @@ export function StackCarousel({ movies }: StackCarouselProps) {
 	const [activeIndex, setActiveIndex] = useState(0);
 	const reduceMotion = useReducedMotion();
 
-	const d = useDialKit("Resistance", {
-		maxStretch: [0.06, 0, 0.2],
-		stretchRange: [200, 50, 400],
-		dragRotateMax: [8, 0, 20],
-		dragRotateRange: [200, 50, 400],
-		dragElastic: [0.7, 0, 1],
-		releaseBounce: {
-			visualDuration: [0.35, 0.1, 0.8],
-			bounce: [0.6, 0, 1],
-		},
-		smoothing: {
-			_collapsed: true,
-			visualDuration: [0.05, 0.01, 0.3],
-			bounce: [0, 0, 1],
-		},
-		swipe: {
-			_collapsed: true,
-			velocityThreshold: [300, 50, 800],
-			distanceThreshold: [60, 10, 200],
-		},
-	});
+	const d = {
+		maxStretch: 0.06,
+		stretchRange: 200,
+		dragRotateMax: 8,
+		dragRotateRange: 200,
+		dragElastic: 0.7,
+		releaseBounce: { visualDuration: 0.35, bounce: 0.6 },
+		smoothing: { visualDuration: 0.05, bounce: 0 },
+		swipe: { velocityThreshold: 300, distanceThreshold: 60 },
+	};
 
 	const cardSpring = {
 		type: "spring",
@@ -183,7 +171,7 @@ export function StackCarousel({ movies }: StackCarouselProps) {
 	const visibleIds = new Set<string>();
 
 	const content = (
-		<div className="relative flex items-center justify-center w-full h-screen bg-neutral-950">
+		<div className="relative flex items-center justify-center w-full h-screen bg-[#050505]">
 			<AnimatePresence>
 				{movies.map((movie, cardIndex) => {
 					const position = cardIndex - activeIndex;
@@ -210,6 +198,7 @@ export function StackCarousel({ movies }: StackCarouselProps) {
 							style={{
 								zIndex: level.zIndex,
 								transformStyle: "preserve-3d",
+								willChange: "transform",
 								rotate:
 									cardIndex === lastDraggedIndex ? dragRotate : zeroRotate,
 								scaleX: isActive ? stretchX : 1,
