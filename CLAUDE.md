@@ -8,6 +8,7 @@ A mobile-only movie discovery app. Users enter a natural language prompt, an LLM
 - Tailwind v4 (`@import "tailwindcss"`, `@theme {}` blocks)
 - motion/react (Framer Motion) for all animations
 - No additional libraries without explicit approval
+- Use context7 to get latest docs
 
 ## Viewport
 - **Mobile only.** Design and implement exclusively for mobile viewports. Do not add responsive breakpoints for tablet or desktop.

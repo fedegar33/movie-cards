@@ -1,18 +1,8 @@
 import { motion, useReducedMotion } from "motion/react";
 import { useState } from "react";
+import type { Movie } from "./services/tmdbService";
 
-export interface Movie {
-	title: string;
-	year: string;
-	genre: string;
-	runtime: string;
-	description: string;
-	cast: string[];
-	director: string;
-	rating: string;
-	poster: string;
-	backdrop: string;
-}
+export type { Movie };
 
 const FACE =
 	"absolute inset-0 rounded-[14px] overflow-hidden bg-[#0F0F0F] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.2),inset_0_0_0_1px_rgba(255,255,255,0.08)]";
@@ -89,9 +79,11 @@ export function MovieCard({
 			style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
 		>
 			{/* Rating badge */}
+			{/*
 			<div className="absolute top-6 right-6 w-9 h-9 rounded-full border border-[#E6DDD0] flex items-center justify-center font-body font-semibold text-[10px] text-[#E6DDD0] bg-black/50 backdrop-blur-sm z-35">
 				{movie.rating}
 			</div>
+			*/}
 
 			<CardOverlay />
 			<CardFrame opacity={0.2} />
@@ -113,45 +105,48 @@ export function MovieCard({
 			</div>
 
 			{/* Body */}
-			<div className="flex-1 flex flex-col gap-1 px-5 relative -top-2">
+			<div className="flex-1 flex flex-col gap-2 px-5 relative -top-2">
 				{/* Title lockup */}
-				<div className="border-b border-white/10 pb-2.5 flex flex-col items-center text-center">
-					<h2 className="font-serif text-[16px] text-white leading-none mb-1 text-balance">
+				<div className="border-b border-white/10 pb-2.5 flex flex-col gap-y-2 items-center text-center">
+					<h2 className="font-serif text-[18px] text-white leading-none mb-1 text-balance">
 						{movie.title}
 					</h2>
+					<div className="self-center text-[10px] uppercase text-white/60 font-normal tracking-[0.12em]">
+						{movie.genre}
+					</div>
 					<div className="flex gap-2 justify-center font-body text-[10px] uppercase text-white/60 font-normal">
 						<span>{movie.year}</span>
 						<span>•</span>
-						<span>{movie.genre}</span>
+						<span>{movie.rating}</span>
 						<span>•</span>
-						<span>{movie.runtime}</span>
+						<span>{movie.runtime || "2h 20m"}</span>
 					</div>
 				</div>
 
 				{/* Description */}
-				<p className="font-body font-light italic text-base leading-normal text-[10px] text-white/75 min-h-18">
+				<p className="font-body font-light italic text-base leading-normal text-center text-[10px] text-white/75 min-h-18">
 					{movie.description}
 				</p>
 
-				{/* Cast */}
-				<div>
-					<span className="font-body font-medium text-[10px] uppercase tracking-[0.12em] text-white/35">
-						Cast
-					</span>
-					<p className="font-body font-light text-[10px] text-[#E6DDD0]">
-						{movie.cast.join(", ")}
-					</p>
-				</div>
+				{/*
+					<div>
+						<span className="font-body font-medium text-[10px] uppercase tracking-[0.12em] text-white/35">
+							Cast
+						</span>
+						<p className="font-body font-light text-[10px] text-[#E6DDD0]">
+							{movie.cast.join(", ")}
+						</p>
+					</div>
 
-				{/* Director */}
-				<div className="flex justify-start items-baseline gap-1.5">
-					<span className="font-body font-medium text-[0.55rem] uppercase tracking-[0.12em] text-white/35">
-						Director
-					</span>
-					<span className="font-serif italic text-[0.8rem] text-[#E6DDD0]">
-						{movie.director}
-					</span>
-				</div>
+					<div className="flex justify-start items-baseline gap-1.5">
+						<span className="font-body font-medium text-[0.55rem] uppercase tracking-[0.12em] text-white/35">
+							Director
+						</span>
+						<span className="font-serif italic text-[0.8rem] text-[#E6DDD0]">
+							{movie.director}
+						</span>
+					</div>
+				*/}
 			</div>
 		</div>
 	);
