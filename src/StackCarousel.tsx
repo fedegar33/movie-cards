@@ -1,3 +1,4 @@
+import { useDialKit } from "dialkit";
 import {
 	AnimatePresence,
 	animate,
@@ -33,16 +34,27 @@ export function StackCarousel({ movies }: StackCarouselProps) {
 	const [activeIndex, setActiveIndex] = useState(0);
 	const reduceMotion = useReducedMotion();
 
-	const d = {
-		maxStretch: 0.06,
-		stretchRange: 200,
-		dragRotateMax: 8,
-		dragRotateRange: 200,
-		dragElastic: 0.7,
-		releaseBounce: { visualDuration: 0.35, bounce: 0.6 },
-		smoothing: { visualDuration: 0.05, bounce: 0 },
-		swipe: { velocityThreshold: 300, distanceThreshold: 60 },
-	};
+	const d = useDialKit("Resistance", {
+		maxStretch: [0.06, 0, 0.2],
+		stretchRange: [200, 50, 400],
+		dragRotateMax: [8, 0, 20],
+		dragRotateRange: [200, 50, 400],
+		dragElastic: [0.7, 0, 1],
+		releaseBounce: {
+			visualDuration: [0.35, 0.1, 0.8],
+			bounce: [0.6, 0, 1],
+		},
+		smoothing: {
+			_collapsed: true,
+			visualDuration: [0.05, 0.01, 0.3],
+			bounce: [0, 0, 1],
+		},
+		swipe: {
+			_collapsed: true,
+			velocityThreshold: [300, 50, 800],
+			distanceThreshold: [60, 10, 200],
+		},
+	});
 
 	const cardSpring = {
 		type: "spring",
@@ -194,7 +206,7 @@ export function StackCarousel({ movies }: StackCarouselProps) {
 							key={movie.poster}
 							custom={{ direction: exitDirection, restX: translateX }}
 							variants={cardVariants}
-							className={`aspect-2/3 absolute w-3/5 ${isActive ? (isDragging ? "cursor-grabbing" : "cursor-grab") : "pointer-events-none"}`}
+							className={`aspect-2/3 absolute w-8/12 ${isActive ? (isDragging ? "cursor-grabbing" : "cursor-grab") : "pointer-events-none"}`}
 							style={{
 								zIndex: level.zIndex,
 								transformStyle: "preserve-3d",
@@ -206,8 +218,8 @@ export function StackCarousel({ movies }: StackCarouselProps) {
 							drag="x"
 							dragConstraints={{ left: 0, right: 0 }}
 							dragElastic={{
-								left: activeIndex < movies.length - 1 ? d.dragElastic : 0,
-								right: activeIndex > 0 ? d.dragElastic : 0,
+								left: activeIndex < movies.length - 1 ? d.dragElastic : 0.05,
+								right: activeIndex > 0 ? d.dragElastic : 0.05,
 							}}
 							onDragStart={isActive ? handleDragStart : undefined}
 							onDrag={isActive ? handleDrag : undefined}
@@ -219,7 +231,13 @@ export function StackCarousel({ movies }: StackCarouselProps) {
 								opacity: level.opacity,
 							}}
 							exit="exit"
-							transition={reduceMotion ? { duration: 0 } : cardSpring}
+							transition={
+								reduceMotion
+									? { duration: 0 }
+									: cardIndex === lastDraggedIndex
+										? cardSpring
+										: { ...cardSpring, delay: 0.1 }
+							}
 						>
 							<MovieCard movie={movie} isActive={isActive} />
 						</motion.div>

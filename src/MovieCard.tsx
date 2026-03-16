@@ -48,7 +48,7 @@ export function MovieCard({
 		hasFlipped.current = false;
 	}
 
-	const flip = { perspective: 800, duration: 0.5, bounce: 0.25, scale: 1.55 };
+	const flip = { perspective: 800, duration: 0.5, bounce: 0.25, scale: 1.5 };
 
 	const flipTransition = reduceMotion
 		? ({ duration: 0 } as const)
