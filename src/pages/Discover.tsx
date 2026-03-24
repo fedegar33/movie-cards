@@ -1,6 +1,6 @@
 import { createRoute, useLoaderData } from "@tanstack/react-router";
 import { motion } from "motion/react";
-import { StackCarousel } from "../StackCarousel";
+import { CoverFlowCarousel } from "../CoverFlowCarousel";
 import { executeQuery } from "../services/queryOrchestrator";
 import type { Movie } from "../services/tmdbService";
 import { rootRoute } from "./Root";
@@ -113,7 +113,7 @@ function Discover() {
 			animate={{ opacity: 1 }}
 			transition={{ duration: 0.5 }}
 		>
-			<StackCarousel movies={movies} />
+			<CoverFlowCarousel movies={movies} />
 		</motion.div>
 	);
 }

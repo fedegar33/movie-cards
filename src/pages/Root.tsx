@@ -19,7 +19,7 @@ function Root() {
 
 	return (
 		<div className="min-h-screen w-full h-screen bg-[#050505] flex items-center justify-center">
-			<div className="relative max-w-sm w-full h-full bg-[#050505] overflow-hidden">
+			<div className="relative w-full h-full bg-[#050505] overflow-x-hidden">
 				<AnimatePresence mode="wait">
 					<Outlet key={nextMatch?.id} />
 				</AnimatePresence>
