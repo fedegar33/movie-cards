@@ -8,298 +8,81 @@
 	--font-body: "Jost", sans-serif;
 }
 
+/* ratio 2:3 (w:h) for movie covers */
 :root {
-	--cover-size: 200px;
+	--cover-w: 173px;
+	--cover-h: 260px;
+	--cover-scale: 1.5;
 }
 
-/* CoverFlow scroll-driven animation */
-.coverflow-inner {
-	animation: coverflow-rotate linear both;
+/* CoverFlow layout (var-based sizing) */
+.covers-viewport {
+	perspective: calc(var(--cover-w) * 2);
+	max-width: calc(var(--cover-w) * 6);
+	padding: calc(var(--cover-h) / 3 * 2) 0;
+}
+
+.cover-item {
+	width: var(--cover-w);
+	height: var(--cover-h);
+	margin-inline: calc(var(--cover-w) * -0.1);
+}
+
+.cover-item:first-of-type {
+	margin-left: calc(50% - (var(--cover-w) / 2));
+}
+
+.cover-item:last-of-type {
+	margin-right: calc(50% - (var(--cover-w) / 2));
+}
+
+/* CoverFlow scroll-driven animations */
+.cover {
+	animation: rotate-cover linear both;
 	animation-timeline: view(inline);
+	transform: translateX(-100%) rotateY(-45deg);
 }
 
-@keyframes coverflow-rotate {
-	0% {
-		transform: translateX(-60%) rotateY(-45deg) scale(0.85);
-	}
-	35% {
-		transform: translateX(0) rotateY(-45deg) scale(0.85);
-	}
-	50% {
-		transform: rotateY(0deg) translateZ(1em) scale(1);
-	}
-	65% {
-		transform: translateX(0) rotateY(45deg) scale(0.85);
-	}
-	100% {
-		transform: translateX(60%) rotateY(45deg) scale(0.85);
-	}
+.cover-reflection {
+	animation: rotate-cover-reflection linear both;
+	animation-timeline: view(inline);
+	transform: translateX(-100%) rotateY(-45deg) scaleY(-1);
 }
 
-@media (prefers-reduced-motion: reduce) {
-	.coverflow-inner {
-		animation: none;
-	}
-}
-
-/* Animation that rotates the cover */
 @keyframes rotate-cover {
 	0% {
 		transform: translateX(-100%) rotateY(-45deg);
 	}
-
 	35% {
 		transform: translateX(0) rotateY(-45deg);
 	}
-
 	50% {
-		transform: rotateY(0deg) translateZ(calc(var(--cover-size) * 0.1))
-			scale(1.5);
+		transform: rotateY(0deg) translateZ(calc(var(--cover-w) * 0.1))
+			scale(var(--cover-scale));
 	}
-
 	65% {
 		transform: translateX(0) rotateY(45deg);
 	}
-
 	100% {
 		transform: translateX(100%) rotateY(45deg);
 	}
-}
-
-.cards-wrapper {
-	perspective: calc(var(--cover-size) * 2);
-	max-width: calc(var(--cover-size) * 6);
-	overflow-x: auto;
-	overflow-y: hidden;
-	scroll-snap-type: x mandatory;
-	margin: 0 auto;
-	padding: 4rem 0;
-	scrollbar-width: none;
-	/* Firefox */
-}
-
-.cards-wrapper::-webkit-scrollbar {
-	display: none;
-	/* Chrome/Safari */
-}
-
-.cards {
-	transform-style: preserve-3d;
-	list-style: none;
-	padding: 0;
-	/* Horizontal spacing is handled by ::before/::after pseudo-elements
-	   below, because padding on a block with overflowing inline children
-	   doesn't extend the scrollable area on the end side. */
-	margin: 0;
-	white-space: nowrap;
-	/* Keep items in one line */
-	/* Ensure enough height for scaled items */
-	min-height: calc(var(--cover-size) * 1.6);
-	position: relative;
-	/* Needed for absolute positioning if used */
-}
-
-/* Inline-block spacers so first/last items can scroll to the scrollport
-   center and reach the 50% view() timeline keyframe. These participate
-   in the inline flow, unlike padding which doesn't extend scrollable
-   overflow on the end side when inline content overflows a block. */
-.cards::before,
-.cards::after {
-	content: "";
-	display: inline-block;
-	width: calc(var(--cover-size) * 3);
-	vertical-align: middle;
-}
-
-.cards li {
-	transform-style: preserve-3d;
-	display: inline-block;
-	/* Layout items horizontally */
-	width: var(--cover-size);
-	aspect-ratio: 1;
-	margin: 0 calc(var(--cover-size) * -0.1);
-	/* Overlap items slightly */
-	scroll-snap-align: center;
-	/* Snap items to center */
-	vertical-align: middle;
-	/* Align items vertically */
-	position: relative;
-	/* Needed for z-index or transform context */
-}
-
-.cards li img {
-	/* Apply the animation */
-	animation: linear rotate-cover both;
-	animation-timeline: view(inline);
-	/* Link to scroll position */
-
-	/* Initial state to prevent FOUC with polyfill */
-	transform: translateX(-100%) rotateY(-45deg);
-	transform-style: preserve-3d;
-	will-change: transform;
-
-	/* Visual styles */
-	position: relative;
-	user-select: none;
-	display: block;
-	/* Remove extra space below image */
-	width: 100%;
-	height: auto;
-	border-radius: 5px;
-	/* Optional: rounded corners */
-	box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-	/* Optional: add shadow */
-}
-
-/* Reflection using a separate img element */
-.cards li .cover-reflection {
-	animation: linear rotate-cover-reflection both;
-	animation-timeline: view(inline);
-
-	transform-style: preserve-3d;
-	will-change: transform;
-
-	position: absolute;
-	bottom: -130%;
-	left: 0;
-	width: 100%;
-	height: auto;
-	display: block;
-	border-radius: 5px;
-
-	transform: translateX(-100%) rotateY(-45deg) scaleY(-1);
-	opacity: 0.25;
-	mask-image: linear-gradient(to top, transparent 0%, black 100%);
-	pointer-events: none;
-	user-select: none;
 }
 
 @keyframes rotate-cover-reflection {
 	0% {
 		transform: translateX(-100%) rotateY(-45deg) scaleY(-1);
 	}
-
 	35% {
 		transform: translateX(0) rotateY(-45deg) scaleY(-1);
 	}
-
 	50% {
-		transform: rotateY(0deg) translateZ(calc(var(--cover-size) * 0.1))
-			scale(1.5) scaleY(-1);
+		transform: rotateY(0deg) translateZ(calc(var(--cover-w) * 0.1))
+			scale(var(--cover-scale)) scaleY(-1);
 	}
-
 	65% {
 		transform: translateX(0) rotateY(45deg) scaleY(-1);
 	}
-
 	100% {
 		transform: translateX(100%) rotateY(45deg) scaleY(-1);
 	}
 }
-
-/* Album info label — only visible on the active (centered) cover */
-.cards li .cover-info {
-	position: absolute;
-	bottom: -60%;
-	left: 0;
-	width: 100%;
-	text-align: center;
-	white-space: nowrap;
-	pointer-events: none;
-	user-select: none;
-	transform-style: preserve-3d;
-
-	display: flex;
-	flex-direction: column;
-	gap: 0.15em;
-
-	animation: linear show-cover-info both;
-	animation-timeline: view(inline);
-}
-
-.cards li .cover-title {
-	font-weight: 700;
-	font-size: 10px;
-}
-
-.cards li .cover-artist {
-	font-size: 8px;
-	opacity: 0.7;
-}
-
-/* Combines rotate-cover transforms with opacity fade so the label
-   follows the cover's position/rotation and only appears when active */
-@keyframes show-cover-info {
-	0% {
-		transform: translateX(-100%) rotateY(-45deg);
-		opacity: 0;
-	}
-
-	35% {
-		transform: translateX(0) rotateY(-45deg);
-		opacity: 0;
-	}
-
-	45% {
-		opacity: 0;
-	}
-
-	50% {
-		transform: rotateY(0deg) translateZ(calc(var(--cover-size) * 0.1))
-			scale(1.5);
-		opacity: 1;
-	}
-
-	55% {
-		opacity: 0;
-	}
-
-	65% {
-		transform: translateX(0) rotateY(45deg);
-		opacity: 0;
-	}
-
-	100% {
-		transform: translateX(100%) rotateY(45deg);
-		opacity: 0;
-	}
-}
-
-/* Optional: Alternative animation for main thread (controls not implemented yet) */
-@keyframes rotate-cover--mt {
-	0% {
-		transform: translateX(-100%) rotateY(-45deg);
-		--force-mt: 1;
-	}
-
-	35% {
-		transform: translateX(0) rotateY(-45deg);
-	}
-
-	50% {
-		transform: rotateY(0deg) translateZ(calc(var(--cover-size) * 0.1))
-			scale(1.5);
-	}
-
-	65% {
-		transform: translateX(0) rotateY(45deg);
-	}
-
-	100% {
-		transform: translateX(100%) rotateY(45deg);
-		--force-mt: 0;
-	}
-}
-
-/*
-#controls:has(#force-main-thread:checked) ~ .cards li img {
-    animation-name: rotate-cover--mt;
-}
-*/
-
-/* Hide controls if embedded (controls not implemented yet) */
-/*
-.is-embed #controls {
-    display: none;
-}
-*/

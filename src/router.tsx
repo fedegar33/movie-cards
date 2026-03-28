@@ -1,13 +1,11 @@
 import { createRouter } from "@tanstack/react-router";
-import { coverflowRoute } from "./pages/Coverflow";
-import { discoverRoute } from "./pages/Discover";
-import { indexRoute } from "./pages/Index";
+import { queryRoute } from "./pages/Discover";
+import { mainLayoutRoute } from "./pages/MainLayout";
 import { rootRoute } from "./pages/Root";
+import { welcomeRoute } from "./pages/Welcome";
 
 const routeTree = rootRoute.addChildren([
-	indexRoute,
-	discoverRoute,
-	coverflowRoute,
+	mainLayoutRoute.addChildren([welcomeRoute, queryRoute]),
 ]);
 
 export const router = createRouter({ routeTree, defaultPreload: "render" });

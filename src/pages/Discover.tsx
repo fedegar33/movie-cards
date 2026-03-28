@@ -1,9 +1,10 @@
 import { createRoute, useLoaderData } from "@tanstack/react-router";
 import { motion } from "motion/react";
-import { CoverFlowCarousel } from "../CoverFlowCarousel";
+import Coverflow from "../Coverflow";
 import { executeQuery } from "../services/queryOrchestrator";
 import type { Movie } from "../services/tmdbService";
-import { rootRoute } from "./Root";
+import { decodeQuery } from "../utils/queryEncoding";
+import { mainLayoutRoute } from "./MainLayout";
 
 const TEST_MOVIES: Movie[] = [
 	{
@@ -73,22 +74,18 @@ const TEST_MOVIES: Movie[] = [
 	},
 ];
 
-export const discoverRoute = createRoute({
-	getParentRoute: () => rootRoute,
-	path: "/discover",
-	validateSearch: (search: Record<string, unknown>) => ({
-		q: (search.q as string) || "",
-	}),
-	loaderDeps: ({ search }) => ({ q: search.q }),
-	staleTime: 1000 * 60 * 5, // 5 minutes
-	loader: async ({ deps }) => {
-		if (deps.q === "__test__") {
+export const queryRoute = createRoute({
+	getParentRoute: () => mainLayoutRoute,
+	path: "$query",
+	staleTime: 1000 * 60 * 5,
+	loader: async ({ params }) => {
+		const query = decodeQuery(params.query);
+		if (query === "__test__") {
 			await new Promise((r) => setTimeout(r, 500));
 			return TEST_MOVIES;
 		}
-		const movies = await executeQuery(deps.q);
+		const movies = await executeQuery(query);
 		await Promise.all(
-			// Preload poster images for the first 3 movies to improve perceived performance
 			movies.slice(0, 3).map((m) => {
 				if (!m.poster) return null;
 				return new Promise<void>((resolve) => {
@@ -100,20 +97,21 @@ export const discoverRoute = createRoute({
 		);
 		return movies;
 	},
-	component: Discover,
+	component: QueryResults,
 });
 
-function Discover() {
-	const movies = useLoaderData({ from: "/discover" });
+function QueryResults() {
+	const movies = useLoaderData({ from: "/_main/$query" });
 
 	return (
 		<motion.div
 			className="h-full"
 			initial={{ opacity: 0 }}
 			animate={{ opacity: 1 }}
-			transition={{ duration: 0.5 }}
+			exit={{ opacity: 0 }}
+			transition={{ duration: 0.3 }}
 		>
-			<CoverFlowCarousel movies={movies} />
+			<Coverflow movies={movies} />
 		</motion.div>
 	);
 }

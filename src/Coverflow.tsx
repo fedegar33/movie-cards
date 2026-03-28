@@ -1,88 +1,116 @@
+import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { useTickSound } from "./hooks/useTickSound";
+import type { Movie } from "./services/tmdbService";
 
-interface Album {
-	position?: number;
-	image_url: string;
+function CoverBack() {
+	return (
+		<div className="w-[var(--cover-w)] h-[var(--cover-h)] scale-[var(--cover-scale)] rounded-[5px] bg-linear-to-b from-[#1a1a2e] to-[#0a0a0f] shadow-[0_4px_15px_rgba(0,0,0,0.3)]" />
+	);
+}
+
+function CoverFront({
+	poster,
+	title,
+	className = "",
+}: {
+	poster: string;
 	title: string;
-	artists: string;
+	className?: string;
+}) {
+	return (
+		<img
+			className={`relative select-none block w-full h-full rounded-[5px] shadow-[0_4px_15px_rgba(0,0,0,0.3)] will-change-transform object-cover ${className}`}
+			draggable={false}
+			src={poster}
+			alt={title}
+		/>
+	);
 }
 
-interface CoverflowProps {
-	dataUrl?: string;
-}
-
-// Synthesize a short percussive tick using Web Audio API
-function playTick(audioCtx: AudioContext) {
-	const now = audioCtx.currentTime;
-
-	// Short noise burst shaped by a bandpass filter
-	const bufferSize = audioCtx.sampleRate * 0.012; // 12ms
-	const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-	const data = buffer.getChannelData(0);
-	for (let i = 0; i < bufferSize; i++) {
-		data[i] = (Math.random() * 2 - 1) * (1 - i / bufferSize);
-	}
-
-	const source = audioCtx.createBufferSource();
-	source.buffer = buffer;
-
-	const filter = audioCtx.createBiquadFilter();
-	filter.type = "bandpass";
-	filter.frequency.value = 4000;
-	filter.Q.value = 3;
-
-	const gain = audioCtx.createGain();
-	gain.gain.setValueAtTime(0.25, now);
-	gain.gain.exponentialRampToValueAtTime(0.001, now + 0.015);
-
-	source.connect(filter).connect(gain).connect(audioCtx.destination);
-	source.start(now);
-	source.stop(now + 0.015);
-}
-
-function Coverflow({ dataUrl = "/albums.json" }: CoverflowProps) {
-	const [albums, setAlbums] = useState<Album[]>([]);
-	const [error, setError] = useState<string | null>(null);
-	const wrapperRef = useRef<HTMLDivElement>(null);
-	const activeIndexRef = useRef(-1);
-	const audioCtxRef = useRef<AudioContext | null>(null);
+function CoverItem({ movie, isActive }: { movie: Movie; isActive: boolean }) {
+	const [flipped, setFlipped] = useState(false);
+	const shouldReduceMotion = useReducedMotion();
 
 	useEffect(() => {
-		fetch(dataUrl)
-			.then((response) => {
-				if (!response.ok) {
-					throw new Error(`HTTP error! status: ${response.status}`);
-				}
-				return response.json();
-			})
-			.then((data: Album[]) => {
-				setAlbums(data);
+		if (!isActive) setFlipped(false);
+	}, [isActive]);
 
-				for (const album of data) {
-					if (album.image_url) {
-						fetch(album.image_url, { mode: "no-cors" }).catch(
-							(prefetchError) => {
-								console.warn(
-									`Error prefetching image ${album.image_url}:`,
-									prefetchError,
-								);
-							},
-						);
-					}
+	function handleClick() {
+		if (isActive) setFlipped((f) => !f);
+	}
+
+	function handleKeyUp(e: React.KeyboardEvent) {
+		if (isActive && (e.key === "Enter" || e.key === " ")) {
+			setFlipped((f) => !f);
+		}
+	}
+
+	return (
+		<li
+			className="cover-item transform-3d inline-block snap-center relative"
+			onClick={handleClick}
+			onKeyUp={handleKeyUp}
+		>
+			<motion.div
+				className="w-full h-full"
+				animate={{
+					rotateY: flipped ? 180 : 0,
+					translateZ: flipped ? 100 : 0,
+				}}
+				transition={
+					shouldReduceMotion
+						? { duration: 0 }
+						: { type: "spring", duration: 0.3, bounce: 0.15 }
 				}
-			})
-			.catch((err: Error) => {
-				console.error("Error fetching albums:", err);
-				setError(err.message);
-			});
-	}, [dataUrl]);
+				style={{ transformStyle: "preserve-3d" }}
+			>
+				<div
+					className="absolute inset-0 z-0"
+					style={{
+						backfaceVisibility: "hidden",
+						transformStyle: "preserve-3d",
+					}}
+				>
+					<CoverFront
+						poster={movie.poster}
+						title={movie.title}
+						className="cover"
+					/>
+				</div>
+				{isActive && (
+					<div
+						className="absolute inset-0 z-10"
+						style={{
+							backfaceVisibility: "hidden",
+							transformStyle: "preserve-3d",
+							transform: "rotateY(180deg)",
+						}}
+					>
+						<CoverBack />
+					</div>
+				)}
+			</motion.div>
+			<CoverFront
+				poster={movie.poster}
+				title={movie.title}
+				className="cover-reflection absolute -bottom-[130%] left-0 pointer-events-none opacity-25 mask-[linear-gradient(to_top,transparent_0%,black_100%)]"
+			/>
+		</li>
+	);
+}
+
+function Coverflow({ movies }: { movies: Movie[] }) {
+	const wrapperRef = useRef<HTMLDivElement>(null);
+	const [activeIndex, setActiveIndex] = useState(-1);
+	const tick = useTickSound();
 
 	// Detect active cover changes on scroll and play tick
 	function handleScroll() {
 		const wrapper = wrapperRef.current;
 		if (!wrapper) return;
 
-		const items = wrapper.querySelectorAll<HTMLLIElement>(".cards li");
+		const items = wrapper.querySelectorAll<HTMLLIElement>("li");
 		if (!items.length) return;
 
 		const center =
@@ -100,55 +128,25 @@ function Coverflow({ dataUrl = "/albums.json" }: CoverflowProps) {
 			}
 		}
 
-		if (closestIndex !== activeIndexRef.current) {
-			activeIndexRef.current = closestIndex;
-
-			// Lazily create AudioContext on first interaction (browser policy)
-			if (!audioCtxRef.current) {
-				audioCtxRef.current = new AudioContext();
-			}
-			const ctx = audioCtxRef.current;
-			if (ctx.state === "suspended") {
-				ctx.resume();
-			}
-			playTick(ctx);
+		if (closestIndex !== activeIndex) {
+			setActiveIndex(closestIndex);
+			tick();
 		}
 	}
 
-	if (error) {
-		return <div className="error-message">Error loading albums: {error}</div>;
-	}
-
-	if (albums.length === 0) {
-		return <div className="loading-message">Loading albums...</div>;
-	}
-
 	return (
-		<div className="cards-wrapper" ref={wrapperRef} onScroll={handleScroll}>
-			<ul className="cards">
-				{albums.map((album, index) => (
-					<li key={album.position ?? index} className="card">
-						<img
-							draggable={false}
-							src={album.image_url}
-							alt={`${album.title} by ${album.artists}`}
-							width={600}
-							height={600}
-						/>
-						<img
-							className="cover-reflection"
-							draggable={false}
-							src={album.image_url}
-							alt=""
-							aria-hidden="true"
-							width={600}
-							height={600}
-						/>
-						<div className="cover-info">
-							<span className="cover-title">{album.title}</span>
-							<span className="cover-artist">{album.artists}</span>
-						</div>
-					</li>
+		<div
+			className="covers-viewport overflow-x-auto overflow-y-hidden snap-x snap-mandatory mx-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+			ref={wrapperRef}
+			onScroll={handleScroll}
+		>
+			<ul className="transform-3d list-none p-0 m-0 whitespace-nowrap relative">
+				{movies.map((movie, index) => (
+					<CoverItem
+						key={movie.title}
+						movie={movie}
+						isActive={index === activeIndex}
+					/>
 				))}
 			</ul>
 		</div>
